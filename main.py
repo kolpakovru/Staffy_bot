@@ -1,14 +1,15 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import json
 import requests
 import telebot
 import datetime
 import config
 import message_vars
 import mongo_func
+import pandas
+import os
 from requests.auth import HTTPBasicAuth
-from calendar import monthrange
 
 bot = telebot.TeleBot(config.token)
 
@@ -38,7 +39,9 @@ def cogs_command(message):
     keyboard.row(
         telebot.types.InlineKeyboardButton('Потрачено в прошлом месяце', callback_data='get-cogs-before')
     )
-
+    keyboard.row(
+        telebot.types.InlineKeyboardButton('Подробные траты в этом месяце', callback_data='get-cogs-now-detail')
+    )
     bot.send_message(
         message.chat.id,
         'Выбери за какой месяц показать себестоиомсть:',
@@ -57,12 +60,40 @@ def send_cogs_now(call):
         f = open('../logs', 'a')
         f.write(str(datetime.datetime.now()) + ' процедура send_cogs_now. ответ Tillypad API ' + str(client) + ' \n')
         f.close()
-# Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- начало
+        # Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- начало
         today = datetime.date.today()
         datestart = str(today.strftime("%Y")) + str(today.strftime("%m")) + str('01')
         dateend = str(today.strftime("%Y")) + str(today.strftime("%m")) + str(today.strftime("%d"))
-# Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- конец
+        # Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- конец
         par = {'date_from' : datestart, 'date_to' : dateend, 'client_id' : client[0]["clnt_ID"]}
+        f = open('../logs', 'a')
+        f.write(str(datetime.datetime.now()) + ' процедура send_cogs_now. параметры для запроса с/с текущий месяц' + str(par) + ' \n')
+        f.close()
+        answer = requests.get('https://mplace.space:20101/bi/query/cogs_client', params=par, auth=HTTPBasicAuth('bi', 'bi')).json()
+        f = open('../logs', 'a')
+        f.write(
+            str(datetime.datetime.now()) + ' процедура send_cogs_now. ответ запроса с/с текущий месяц ' + str(answer) + ' \n')
+        f.close()
+        if answer == 'None':
+            bot.send_message(call.message.chat.id, 'Данных по операциям нет')
+        else:
+            bot.send_message(call.message.chat.id, 'Ты уже потратил приблизительно: ' + str(round(float(answer))) + ' руб.')
+    elif call.data == "get-cogs-before":
+        bot.send_chat_action(call.message.chat.id, 'typing')
+        query = mongo_func.find_document(config.users_collection, {'telegram_id': call.message.chat.id}, True)
+        phone = {"phone": query[0]["phone"]}
+        client = requests.get("http://service.tillypad.ru:8059/tillypad-api/market-place/get-client-by-phone", params=phone).json()
+        f = open('../logs', 'a')
+        f.write(str(datetime.datetime.now()) + ' процедура send_cogs_now. ответ Tillypad API ' + str(client) + ' \n')
+        f.close()
+        #Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- начало
+        today = datetime.date.today()
+        first = today.replace(day=1)
+        lastMonth = first - datetime.timedelta(days=1)
+        datestart = str(lastMonth.strftime("%Y")) + str(lastMonth.strftime("%m")) + str('01')
+        dateend = str(lastMonth.strftime("%Y")) + str(lastMonth.strftime("%m")) + str(lastMonth.strftime("%d"))
+        #Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- конец
+        par = {'date_from': datestart, 'date_to': dateend, 'client_id': client[0]["clnt_ID"]}
         f = open('../logs', 'a')
         f.write(str(datetime.datetime.now()) + ' процедура send_cogs_now. параметры для запроса с/с текущий месяц' + str(par) + ' \n')
         f.close()
@@ -83,33 +114,40 @@ def send_cogs_now(call):
         f = open('../logs', 'a')
         f.write(str(datetime.datetime.now()) + ' процедура send_cogs_now. ответ Tillypad API ' + str(client) + ' \n')
         f.close()
-# Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- начало
+        # Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- начало
         today = datetime.date.today()
-        first = today.replace(day=1)
-        lastMonth = first - datetime.timedelta(days=1)
-        datestart = str(lastMonth.strftime("%Y")) + str(lastMonth.strftime("%m")) + str('01')
-        dateend = str(lastMonth.strftime("%Y")) + str(lastMonth.strftime("%m")) + str(lastMonth.strftime("%d"))
-# Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- конец
+        datestart = str(today.strftime("%Y")) + str(today.strftime("%m")) + str('01')
+        dateend = str(today.strftime("%Y")) + str(today.strftime("%m")) + str(today.strftime("%d"))
+        # Определение париода для передачи в параметрах в запрос https://mplace.space:20101/bi/query/cogs_client  -- конец
         par = {'date_from': datestart, 'date_to': dateend, 'client_id': client[0]["clnt_ID"]}
-        f = open('../logs', 'a')
+        f = open('logs', 'a')
         f.write(str(datetime.datetime.now()) + ' процедура send_cogs_now. параметры для запроса с/с текущий месяц' + str(par) + ' \n')
         f.close()
-        answer = requests.get('https://mplace.space:20101/bi/query/cogs_client', params=par, auth=HTTPBasicAuth('bi', 'bi')).json()
-        f = open('../logs', 'a')
-        f.write(
-            str(datetime.datetime.now()) + ' процедура send_cogs_now. ответ запроса с/с текущий месяц ' + str(answer) + ' \n')
-        f.close()
-        if answer == 'None':
+        answer = requests.get('https://mplace.space:20101/bi/query/cogs_client_detail', params=par, auth=HTTPBasicAuth('bi', 'bi')).json()
+        if answer == 'None' or answer == None:
             bot.send_message(call.message.chat.id, 'Данных по операциям нет')
         else:
-            bot.send_message(call.message.chat.id, 'Ты уже потратил приблизительно: ' + str(round(float(answer))) + ' руб.')
+            filejson = str(call.message.chat.id) + '.json'
+            filecsv  = str(call.message.chat.id) + '.csv'
+            with open(filejson, 'w') as outfile:
+                json.dump(answer['data'], outfile)
+            df = pandas.read_json(filejson)
+            f = open(filecsv, 'w')
+            f.write('Ресторан; Дата; ID блюда; Блюдо; Кол-во; Себестоимость \n')
+            f.close()
+            df.to_csv(filecsv, sep=";", header=False, encoding="ansi", index=None, mode="a", decimal=",")
+            f = open(filecsv, "rb")
+            bot.send_document(call.message.chat.id, f)
+            os.remove(filejson)
     keyboard.row(
         telebot.types.InlineKeyboardButton('Потрачено в этом месяце', callback_data='get-cogs-now')
     )
     keyboard.row(
         telebot.types.InlineKeyboardButton('Потрачено в прошлом месяце', callback_data='get-cogs-before')
     )
-
+    keyboard.row(
+        telebot.types.InlineKeyboardButton('Подробные траты в этом месяце', callback_data='get-cogs-now-detail')
+    )
     bot.send_message(
         call.message.chat.id,
         'Выбери за какой месяц показать себестоиомсть твох заказов:',

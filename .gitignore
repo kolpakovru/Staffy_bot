@@ -1,1 +1,4 @@
+config.py
 logs
+*.csv
+__pycache__/
