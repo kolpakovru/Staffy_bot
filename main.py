@@ -124,20 +124,18 @@ def send_cogs_now(call):
         if answer == 'None' or answer == None:
             bot.send_message(call.message.chat.id, 'Данных по операциям нет')
         else:
-            os.chdir("./tempfiles")
             filejson = str(call.message.chat.id) + '.json'
             filecsv  = str(call.message.chat.id) + '_current_month' + '.csv'
             with open(filejson, 'w') as outfile:
                 json.dump(answer['data'], outfile)
             df = pandas.read_json(filejson)
             f = open(filecsv, 'w')
-            f.write('Ресторан; Дата; ID блюда; Блюдо; Кол-во; Себестоимость \n')
+            f.write('Rest; Date; ID menu; Menu; Qty; Costs \n')
             f.close()
-            df.to_csv(filecsv, sep=";", header=False, encoding="ansi", index=None, mode="a", decimal=",")
+            df.to_csv(filecsv, sep=";", header=False, encoding="cp1251", index=None, mode="a", decimal=",")
             f = open(filecsv, "rb")
             bot.send_document(call.message.chat.id, f)
             os.remove(filejson)
-            os.chdir("../")
     else:
         bot.send_chat_action(call.message.chat.id, 'typing')
         query = mongo_func.find_document(config.users_collection, {'telegram_id': call.message.chat.id}, True)
@@ -155,20 +153,18 @@ def send_cogs_now(call):
         if answer == 'None' or answer == None:
             bot.send_message(call.message.chat.id, 'Данных по операциям нет')
         else:
-            os.chdir("./tempfiles")
             filejson = str(call.message.chat.id) + '.json'
             filecsv  = str(call.message.chat.id) + '_last_month' + '.csv'
             with open(filejson, 'w') as outfile:
                 json.dump(answer['data'], outfile)
             df = pandas.read_json(filejson)
             f = open(filecsv, 'w')
-            f.write('Ресторан; Дата; ID блюда; Блюдо; Кол-во; Себестоимость \n')
+            f.write('Rest; Date; ID menu; Menu; Qty; Costs \n')
             f.close()
-            df.to_csv(filecsv, sep=";", header=False, encoding="ansi", index=None, mode="a", decimal=",")
+            df.to_csv(filecsv, sep=";", header=False, encoding="cp1251", index=None, mode="a", decimal=",")
             f = open(filecsv, "rb")
             bot.send_document(call.message.chat.id, f)
             os.remove(filejson)
-            os.chdir("../")
     keyboard.row(
         telebot.types.InlineKeyboardButton('Потрачено в этом месяце', callback_data='get-cogs-now')
     )
